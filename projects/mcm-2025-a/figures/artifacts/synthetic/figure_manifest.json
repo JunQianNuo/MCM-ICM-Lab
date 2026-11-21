@@ -1,0 +1,70 @@
+{
+  "figure_stem": "fig_2501909_tread_wear_synthetic",
+  "synthetic": true,
+  "source_label": "Closed-form demo. Peak depth: 3 mm.",
+  "input": {
+    "kind": "closed_form_demo",
+    "generator": "demo_depth_mm",
+    "parameters": {
+      "nx": 24,
+      "ny": 16,
+      "peak_mm": 3.0
+    }
+  },
+  "grid": {
+    "ny": 16,
+    "nx": 24,
+    "dx_mm": 10.0,
+    "dy_mm": 10.0,
+    "x0_mm": 0.0,
+    "y0_mm": 0.0,
+    "axes": {
+      "x": "lateral, 0 = left edge, increases rightward",
+      "y": "longitudinal, 0 = front edge (nosing), increases inward"
+    },
+    "units": {
+      "depth": "mm",
+      "cell_area": "mm^2",
+      "projection": "mm^3"
+    }
+  },
+  "projections": {
+    "x_wear_volume_mm3_total": 33150.0,
+    "y_wear_volume_mm3_total": 33150.0,
+    "grand_total_mm3": 33150.0,
+    "max_depth_mm": 3.0,
+    "argmax_depth_xy_mm": [
+      115.0,
+      5.0
+    ]
+  },
+  "cross_checks": [
+    {
+      "label": "x_wear_volume_mm3",
+      "ok": true,
+      "max_rel_error": 0.0,
+      "rtol": 1e-12,
+      "n": 24
+    },
+    {
+      "label": "y_wear_volume_mm3",
+      "ok": true,
+      "max_rel_error": 0.0,
+      "rtol": 1e-12,
+      "n": 16
+    }
+  ],
+  "outputs": [
+    "artifacts/synthetic/fig_2501909_tread_wear_synthetic.png",
+    "artifacts/synthetic/fig_2501909_tread_wear_synthetic.pdf",
+    "artifacts/synthetic/fig_2501909_tread_wear_synthetic.svg",
+    "artifacts/synthetic/x_wear_volume_mm3.csv",
+    "artifacts/synthetic/y_wear_volume_mm3.csv"
+  ],
+  "software": {
+    "python": "3.12.3",
+    "numpy": "1.26.4",
+    "matplotlib": "3.6.3"
+  },
+  "generated_utc": "2026-11-21T03:32:57.226837+00:00"
+}
