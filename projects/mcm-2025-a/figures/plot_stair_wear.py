@@ -246,9 +246,9 @@ def plot_figure(depth_mm: np.ndarray, x_proj: np.ndarray, y_proj: np.ndarray,
         heat_w_in = 8.0
         heat_h_in = heat_w_in / data_aspect
 
-    left_in, bottom_in, top_in, right_in = 0.95, 0.72, 0.78, 0.55
+    left_in, bottom_in, top_in, right_in = 0.95, 0.72, 0.78, 1.05
     gap_xproj, xproj_h = 0.52, 1.05
-    gap_yproj, yproj_w = 0.55, 1.42
+    gap_yproj, yproj_w = 0.55, 1.85
     fig_w = left_in + heat_w_in + gap_yproj + yproj_w + right_in
     fig_h = top_in + heat_h_in + gap_xproj + xproj_h + bottom_in
 
@@ -301,7 +301,7 @@ def plot_figure(depth_mm: np.ndarray, x_proj: np.ndarray, y_proj: np.ndarray,
     total_mm3 = float(depth_mm.sum() * dx_mm * dy_mm)
     ax_h.text(0.985, 0.97,
               L(f"总磨损体积 ΣV = {total_mm3:,.0f} mm³",
-                f"Total wear volume = {total_mm3:,.0f} mm^3"),
+                f"Total wear volume = {total_mm3:,.0f} mm³"),
               transform=ax_h.transAxes, ha="right", va="top", fontsize=7.8,
               color="#111111",
               bbox=dict(boxstyle="round,pad=0.22", fc="white", ec="#bbbbbb",
@@ -318,7 +318,7 @@ def plot_figure(depth_mm: np.ndarray, x_proj: np.ndarray, y_proj: np.ndarray,
     # --- lateral projection (x) ---------------------------------------------
     ax_x.bar(x_centers, x_proj, width=0.82 * dx_mm, color="#1f5c8b",
              edgecolor="none", align="center", zorder=2)
-    ax_x.set_ylabel(L("x_wear_volume_mm3\n(mm³)", "x_wear_volume_mm3\n(mm^3)"))
+    ax_x.set_ylabel("x_wear_volume_mm3\n(mm³)")
     ax_x.set_xlabel(L("x (mm) — 台阶左右方向（左 → 右）",
                       "x (mm) — lateral (left -> right)"))
     ax_x.set_title(L("(b) 横向磨损投影（沿 y 求和）",
@@ -331,7 +331,7 @@ def plot_figure(depth_mm: np.ndarray, x_proj: np.ndarray, y_proj: np.ndarray,
     ax_x.spines["top"].set_visible(False)
     ax_x.spines["right"].set_visible(False)
     ix = int(np.argmax(x_proj))
-    ax_x.annotate(L(f"峰值 {x_proj[ix]:,.0f} mm³", f"peak {x_proj[ix]:,.0f} mm^3"),
+    ax_x.annotate(L(f"峰值 {x_proj[ix]:,.0f} mm³", f"peak {x_proj[ix]:,.0f} mm³"),
                   xy=(x_centers[ix], x_proj[ix]), xytext=(5, 4),
                   textcoords="offset points", fontsize=7.2, color="#123a55",
                   annotation_clip=False)
@@ -339,9 +339,10 @@ def plot_figure(depth_mm: np.ndarray, x_proj: np.ndarray, y_proj: np.ndarray,
     # --- longitudinal projection (y) ----------------------------------------
     ax_y.barh(y_centers, y_proj, height=0.82 * dy_mm, color="#1f5c8b",
               edgecolor="none", align="center", zorder=2)
-    ax_y.set_xlabel(L("y_wear_volume_mm3 (mm³)", "y_wear_volume_mm3 (mm^3)"))
-    ax_y.set_title(L("(c) 纵向投影", "(c) Longitudinal"), loc="left", pad=4)
-    ax_y.set_xlim(0, max(float(y_proj.max()), 1e-12) * 1.28)
+    ax_y.set_xlabel("y_wear_volume_mm3 (mm³)")
+    ax_y.set_title(L("(c) 纵向磨损投影（沿 x 求和）",
+                     "(c) Longitudinal projection (sum over x)"), loc="left", pad=4)
+    ax_y.set_xlim(0, max(float(y_proj.max()), 1e-12) * 1.30)
     ax_y.xaxis.set_major_formatter(StrMethodFormatter("{x:,.0f}"))
     ax_y.xaxis.set_major_locator(MaxNLocator(3))
     ax_y.tick_params(labelleft=False)
@@ -350,17 +351,16 @@ def plot_figure(depth_mm: np.ndarray, x_proj: np.ndarray, y_proj: np.ndarray,
     ax_y.spines["top"].set_visible(False)
     ax_y.spines["right"].set_visible(False)
     iy = int(np.argmax(y_proj))
-    ax_y.annotate(L(f"峰值 {y_proj[iy]:,.0f} mm³", f"peak {y_proj[iy]:,.0f} mm^3"),
-                  xy=(y_proj[iy], y_centers[iy]), xytext=(-4, 0),
-                  textcoords="offset points", fontsize=7.2, color="#111111",
-                  ha="right", va="center",
-                  bbox=dict(boxstyle="round,pad=0.14", fc="white", ec="none", alpha=0.9),
+    ax_y.annotate(L(f"峰值 {y_proj[iy]:,.0f} mm³", f"peak {y_proj[iy]:,.0f} mm³"),
+                  xy=(y_proj[iy], y_centers[iy]), xytext=(6, 0),
+                  textcoords="offset points", fontsize=7.2, color="#123a55",
+                  ha="left", va="center",
                   annotation_clip=False)
 
     # --- colour bar ----------------------------------------------------------
     cb = fig.colorbar(mesh, cax=cax, orientation="horizontal")
     cb.set_label(L("磨损深度 depth (mm)", "wear depth (mm)"))
-    cb.ax.xaxis.set_major_locator(MaxNLocator(4))
+    cb.set_ticks(np.linspace(0.0, vmax, 4))
     cb.outline.set_linewidth(0.4)
     cb.ax.tick_params(labelsize=7.4, width=0.4, length=2)
 
