@@ -1,0 +1,11 @@
+{
+  "depth_mm": [[0, 1], [2, 3]],
+  "cell_area_mm2": 1,
+  "archard": {
+    "load_n": 100,
+    "wear_coefficient": 0.01,
+    "sliding_mm": 1,
+    "hardness_n_per_mm2": 10
+  },
+  "age_days": 10
+}
