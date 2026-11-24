@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2501909 踏面磨损合成图预览</title>
+<style>
+  :root { color-scheme: light; }
+  body {
+    margin: 0; padding: 28px 20px 48px;
+    background: #f6f5f2; color: #1d1d1b;
+    font-family: "Noto Sans CJK SC", "Microsoft YaHei", "Source Han Sans SC", system-ui, sans-serif;
+  }
+  main { max-width: 1040px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 6px; letter-spacing: .2px; }
+  .banner {
+    background: #fff3cd; border: 1px solid #d39e00; color: #7a3e00;
+    padding: 8px 12px; border-radius: 6px; font-weight: 700; margin: 10px 0 16px;
+  }
+  .note { margin: 0 0 14px; color: #5a5a55; font-size: 13px; line-height: 1.6; }
+  .card { background: #fff; border: 1px solid #e2dfd8; border-radius: 8px; padding: 12px; }
+  svg { display: block; width: 100%; height: auto; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0 0; }
+  button {
+    border: 1px solid #c9c5bb; background: #fff; color: #1d1d1b;
+    border-radius: 5px; padding: 6px 11px; font: inherit; font-size: 13px; cursor: pointer;
+  }
+  button:hover { background: #f1efe9; }
+  h2 { font-size: 15px; margin: 26px 0 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; background: #fff; }
+  th, td { border: 1px solid #e2dfd8; padding: 7px 9px; text-align: left; }
+  th { background: #f1efe9; font-weight: 600; }
+  td.num { font-variant-numeric: tabular-nums; text-align: right; }
+  .pass { color: #1a6b36; font-weight: 700; }
+  .fail { color: #a3211b; font-weight: 700; }
+  code { background: #eeebe3; padding: 1px 4px; border-radius: 3px; font-size: .92em; }
+  .foot { color: #6b6b64; font-size: 12.5px; line-height: 1.7; margin-top: 18px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>2501909《Stair Wear: Traces of History》— 踏面磨损合成图预览</h1>
+  <div class="banner">SYNTHETIC — 合成演示数据，非论文实测结果</div>
+  <p class="note">
+    本页在浏览器中实时重算闭式合成磨损格（24 × 16，dx = dy = 10 mm），绘制踏面热图、
+    横向投影 <code>x_wear_volume_mm3</code> 和纵向投影 <code>y_wear_volume_mm3</code>，
+    并显示与手算值的核对。配色为 cividis 的近似；正式图以
+    <code>plot_stair_wear.py</code> 的 Matplotlib/cividis 300 dpi 输出为准。
+  </p>
+
+  <div class="card">
+    <svg id="fig" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 690" role="img"
+         aria-label="合成踏面磨损热图与横向、纵向投影"></svg>
+  </div>
+
+  <div class="row">
+    <button id="btn-svg">下载当前 SVG</button>
+    <button id="btn-x">下载 x 投影 CSV</button>
+    <button id="btn-y">下载 y 投影 CSV</button>
+  </div>
+
+  <h2>手算核对</h2>
+  <table id="checks">
+    <thead><tr><th>检查项</th><th>页面计算值</th><th>手算期望值</th><th>判定</th></tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <p class="foot">
+    坐标：<code>depth_mm[y][x]</code>；x 为台阶左右方向（0 = 左端，向右递增）；
+    y 为踏面前后方向（0 = 前缘 nosing，向内部递增）；原点在前缘—左端角点。
+    深度单位 mm；投影 = dx·dy·Σ depth，单位 mm³。
+    页面 <code>x_wear_volume_mm3</code> 与 <code>y_wear_volume_mm3</code> 求和都应为 33,150 mm³。
+  </p>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---- closed-form synthetic field (same construction as plot_stair_wear.py) ----
+  const NX = 24, NY = 16, DX = 10, DY = 10, PEAK = 3.0;
+  const g = [], h = [];
+  let gmax = 0;
+  for (let i = 0; i < NX; i++) {
+    const v = i < NX / 2 ? i + 1 : NX - i;
+    g.push(v);
+    if (v > gmax) gmax = v;
+  }
+  for (let i = 0; i < NX; i++) g[i] /= gmax;
+  for (let j = 0; j < NY; j++) h.push((NY - j) / NY);
+
+  const depth = [];
+  for (let j = 0; j < NY; j++) {
+    const row = [];
+    for (let i = 0; i < NX; i++) row.push(PEAK * h[j] * g[i]);
+    depth.push(row);
+  }
+
+  const area = DX * DY;
+  const xv = new Array(NX).fill(0);
+  const yv = new Array(NY).fill(0);
+  let total = 0;
+  for (let j = 0; j < NY; j++) {
+    for (let i = 0; i < NX; i++) {
+      const v = depth[j][i] * area;
+      xv[i] += v;
+      yv[j] += v;
+      total += v;
+    }
+  }
+
+  // ---- SVG helpers ----
+  const NS = "http://www.w3.org/2000/svg";
+  const svg = document.getElementById("fig");
+  function mk(tag, attrs, text) {
+    const e = document.createElementNS(NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text !== undefined) e.textContent = text;
+    svg.appendChild(e);
+    return e;
+  }
+  function halo(attrs) {
+    attrs.style = "paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round";
+    return attrs;
+  }
+
+  // ---- cividis-like sequential ramp (approximate) ----
+  const stops = [
+    [0.00, [0, 32, 77]],
+    [0.25, [49, 68, 107]],
+    [0.50, [102, 104, 112]],
+    [0.75, [149, 141, 104]],
+    [1.00, [254, 232, 56]]
+  ];
+  function colorAt(t) {
+    t = Math.max(0, Math.min(1, t));
+    for (let k = 1; k < stops.length; k++) {
+      if (t <= stops[k][0]) {
+        const t0 = stops[k - 1][0], c0 = stops[k - 1][1];
+        const t1 = stops[k][0], c1 = stops[k][1];
+        const u = (t - t0) / (t1 - t0);
+        const c = c0.map(function (v, i) { return Math.round(v + (c1[i] - v) * u); });
+        return "rgb(" + c[0] + "," + c[1] + "," + c[2] + ")";
+      }
+    }
+    return "rgb(254,232,56)";
+  }
+
+  // ---- layout (SVG user units) ----
+  const W = 980, H = 690;
+  const heatLeft = 110, heatTop = 70, cell = 23;
+  const heatW = NX * cell, heatH = NY * cell;
+  const xpLeft = 110, xpTop = heatTop + heatH + 78, xpH = 108, xpW = heatW;
+  const ypLeft = heatLeft + heatW + 86, ypTop = heatTop, ypW = 150, ypH = heatH;
+  const xmax = 2550, ymax = 3900;
+  const sup3 = "³";
+
+  mk("rect", { x: 0, y: 0, width: W, height: H, fill: "#ffffff" });
+
+  // ---- heatmap ----
+  for (let j = 0; j < NY; j++) {
+    for (let i = 0; i < NX; i++) {
+      mk("rect", {
+        x: heatLeft + i * cell,
+        y: heatTop + (NY - 1 - j) * cell,
+        width: cell, height: cell,
+        fill: colorAt(depth[j][i] / PEAK)
+      });
+    }
+  }
+  mk("rect", {
+    x: heatLeft, y: heatTop, width: heatW, height: heatH,
+    fill: "none", stroke: "#4a4a45", "stroke-width": 1.1
+  });
+
+  // ---- axis ticks: y (mm) on the heatmap ----
+  for (let v = 0; v <= 160; v += 40) {
+    const py = heatTop + heatH - (v / 160) * heatH;
+    mk("line", { x1: heatLeft - 4, y1: py, x2: heatLeft, y2: py, stroke: "#6b6b64", "stroke-width": 1 });
+    mk(halo({ x: heatLeft - 8, y: py + 3.5, "text-anchor": "end", "font-size": 12, fill: "#3a3a36" }), String(v));
+  }
+
+  // ---- x projection (bars) ----
+  const baselineY = xpTop + xpH;
+  mk("line", { x1: xpLeft, y1: baselineY, x2: xpLeft + xpW, y2: baselineY, stroke: "#4a4a45", "stroke-width": 1.1 });
+  for (let v = 0; v <= 2000; v += 1000) {
+    const py = baselineY - (v / xmax) * xpH;
+    mk("line", { x1: xpLeft, y1: py, x2: xpLeft + xpW, y2: py, stroke: "#e8e6df", "stroke-width": 1 });
+    mk(halo({ x: xpLeft - 8, y: py + 3.5, "text-anchor": "end", "font-size": 11, fill: "#5a5a55" }), v.toLocaleString("en-US"));
+  }
+  for (let i = 0; i < NX; i++) {
+    const bh = (xv[i] / xmax) * xpH;
+    mk("rect", {
+      x: heatLeft + i * cell + cell * 0.09,
+      y: baselineY - bh,
+      width: cell * 0.82, height: bh,
+      fill: "#1f5c8b"
+    });
+  }
+  // x tick labels under the x projection
+  for (let v = 0; v <= 240; v += 40) {
+    const px = heatLeft + (v / 240) * heatW;
+    mk("line", { x1: px, y1: baselineY, x2: px, y2: baselineY + 4, stroke: "#6b6b64", "stroke-width": 1 });
+    mk(halo({ x: px, y: baselineY + 18, "text-anchor": "middle", "font-size": 12, fill: "#3a3a36" }), String(v));
+  }
+
+  // ---- y projection (horizontal bars) ----
+  mk("line", { x1: ypLeft, y1: ypTop, x2: ypLeft, y2: ypTop + ypH, stroke: "#4a4a45", "stroke-width": 1.1 });
+  for (let v = 0; v <= 3000; v += 1000) {
+    const px = ypLeft + (v / ymax) * ypW;
+    mk("line", { x1: px, y1: ypTop, x2: px, y2: ypTop + ypH, stroke: "#e8e6df", "stroke-width": 1 });
+    mk("line", { x1: px, y1: ypTop + ypH, x2: px, y2: ypTop + ypH + 4, stroke: "#6b6b64", "stroke-width": 1 });
+    mk(halo({ x: px, y: ypTop + ypH + 18, "text-anchor": "middle", "font-size": 11, fill: "#5a5a55" }), v.toLocaleString("en-US"));
+  }
+  for (let j = 0; j < NY; j++) {
+    const bw = (yv[j] / ymax) * ypW;
+    mk("rect", {
+      x: ypLeft,
+      y: ypTop + (NY - 1 - j) * cell + cell * 0.09,
+      width: bw, height: cell * 0.82,
+      fill: "#1f5c8b"
+    });
+  }
+
+  // ---- colour bar ----
+  const cbLeft = ypLeft, cbTop = xpTop + 8, cbW = ypW, cbH = 18;
+  for (let k = 0; k < 60; k++) {
+    mk("rect", {
+      x: cbLeft + (k / 60) * cbW, y: cbTop,
+      width: cbW / 60 + 0.5, height: cbH,
+      fill: colorAt(k / 59)
+    });
+  }
+  for (let v = 0; v <= 3; v++) {
+    const px = cbLeft + (v / 3) * cbW;
+    mk("line", { x1: px, y1: cbTop + cbH, x2: px, y2: cbTop + cbH + 4, stroke: "#6b6b64", "stroke-width": 1 });
+    mk(halo({ x: px, y: cbTop + cbH + 17, "text-anchor": "middle", "font-size": 11, fill: "#5a5a55" }), String(v));
+  }
+
+  // ---- titles and axis labels ----
+  mk("text", { x: heatLeft, y: 44, "font-size": 15, "font-weight": 600, fill: "#1d1d1b" },
+     "(a) 踏面磨损深度场  depth_mm[y][x]");
+  mk("text", { x: xpLeft, y: xpTop - 16, "font-size": 13.5, "font-weight": 600, fill: "#1d1d1b" },
+     "(b) 横向磨损投影（沿 y 求和）");
+  mk("text", { x: ypLeft, y: 44, "font-size": 13.5, "font-weight": 600, fill: "#1d1d1b" },
+     "(c) 纵向投影");
+
+  mk("text", { x: xpLeft + xpW / 2, y: 668, "text-anchor": "middle", "font-size": 13, fill: "#3a3a36" },
+     "x (mm) — 台阶左右方向（左 → 右）");
+  mk("text", {
+    x: 40, y: heatTop + heatH / 2, "text-anchor": "middle", "font-size": 13, fill: "#3a3a36",
+    transform: "rotate(-90 40 " + (heatTop + heatH / 2) + ")"
+  }, "y (mm) — 踏面前后方向（前缘 y=0 → 内部）");
+  mk("text", {
+    x: xpLeft - 62, y: xpTop + xpH / 2, "text-anchor": "middle", "font-size": 12, fill: "#3a3a36",
+    transform: "rotate(-90 " + (xpLeft - 62) + " " + (xpTop + xpH / 2) + ")"
+  }, "x_wear_volume_mm3 (mm" + sup3 + ")");
+  mk("text", { x: ypLeft + ypW / 2, y: ypTop + ypH + 52, "text-anchor": "middle", "font-size": 11.5, fill: "#3a3a36" },
+     "y_wear_volume_mm3 (mm" + sup3 + ")");
+  mk("text", { x: cbLeft, y: cbTop + cbH + 38, "font-size": 12, fill: "#3a3a36" },
+     "磨损深度 depth (mm)");
+
+  // ---- annotations ----
+  mk("circle", { cx: heatLeft, cy: heatTop + heatH, r: 4, fill: "#ffffff", stroke: "#111111", "stroke-width": 1.2 });
+  mk("text", halo({ x: heatLeft + 9, y: heatTop + heatH - 8, "font-size": 12, fill: "#111111" }),
+     "O(0,0) 前缘·左端");
+  mk("text", halo({
+    x: heatLeft + heatW - 8, y: heatTop + 18, "text-anchor": "end", "font-size": 12.5,
+    "font-weight": 600, fill: "#111111"
+  }), "ΣV = " + total.toLocaleString("en-US") + " mm" + sup3);
+
+  mk("text", {
+    x: heatLeft + heatW / 2, y: heatTop + heatH / 2,
+    "text-anchor": "middle", "dominant-baseline": "middle",
+    "font-size": 40, "font-weight": 800, fill: "#ffffff", opacity: 0.62,
+    stroke: "#333333", "stroke-width": 1.4,
+    transform: "rotate(-28 " + (heatLeft + heatW / 2) + " " + (heatTop + heatH / 2) + ")"
+  }, "SYNTHETIC");
+
+  // peak labels
+  const xPeak = Math.max.apply(null, xv);
+  const yPeak = Math.max.apply(null, yv);
+  mk("text", halo({ x: heatLeft + xpW - 8, y: xpTop + 16, "text-anchor": "end", "font-size": 12, fill: "#123a55" }),
+     "峰值 " + Math.round(xPeak).toLocaleString("en-US") + " mm" + sup3);
+  mk("text", halo({ x: ypLeft + ypW - 4, y: ypTop + ypH - 10, "text-anchor": "end", "font-size": 11.5, fill: "#123a55" }),
+     "峰值 " + Math.round(yPeak).toLocaleString("en-US") + " mm" + sup3);
+
+  // ---- hand checks ----
+  function sum(a) { return a.reduce(function (s, v) { return s + v; }, 0); }
+  const relTol = 1e-9;
+  const rows = [
+    ["x 左端投影（x = 5 mm）", xv[0], 212.5],
+    ["x 中心峰值（x = 115 mm）", xv[11], 2550.0],
+    ["y 前缘投影（y = 5 mm）", yv[0], 3900.0],
+    ["y 最内投影（y = 155 mm）", yv[15], 243.75],
+    ["Σ x_wear_volume_mm3", sum(xv), 33150.0],
+    ["Σ y_wear_volume_mm3", sum(yv), 33150.0],
+    ["总磨损体积 V", total, 33150.0],
+    ["两投影守恒 |Σx − Σy|", Math.abs(sum(xv) - sum(yv)), 0.0]
+  ];
+  const tbody = document.querySelector("#checks tbody");
+  let allPass = true;
+  rows.forEach(function (r) {
+    const actual = r[1], expected = r[2];
+    const tol = relTol * Math.max(1.0, Math.abs(expected));
+    const pass = Math.abs(actual - expected) <= tol;
+    if (!pass) allPass = false;
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+      "<td>" + r[0] + "</td>" +
+      "<td class='num'>" + actual.toFixed(6) + "</td>" +
+      "<td class='num'>" + expected.toFixed(6) + "</td>" +
+      "<td class='" + (pass ? "pass" : "fail") + "'>" + (pass ? "PASS" : "FAIL") + "</td>";
+    tbody.appendChild(tr);
+  });
+  if (!allPass) {
+    const p = document.querySelector(".note");
+    p.textContent = "核对失败：请检查页面脚本。";
+    p.style.color = "#a3211b";
+  }
+
+  // ---- optional: publish the check result to the myco page state ----------
+  // When this page is opened inside the myco App, the coordinator/other agents
+  // can read the browser-computed checks with `myco page state get`.
+  if (typeof myco !== "undefined" && myco && myco.ready) {
+    myco.ready.then(function (ctx) {
+      const prev = (ctx && ctx.state) ? ctx.state : {};
+      const next = Object.assign({}, prev, {
+        figure: "2501909 synthetic tread-wear preview",
+        synthetic: true,
+        all_pass: allPass,
+        rendered_checks: rows.map(function (r) {
+          return { name: r[0], actual: r[1], expected: r[2] };
+        }),
+        total_mm3: total,
+        grid: { nx: NX, ny: NY, dx_mm: DX, dy_mm: DY },
+        coordinate_system: "depth_mm[y][x]; x left->right; y front edge->inward; origin front-left",
+        units: { depth: "mm", projection: "mm3" },
+        rendered_at: new Date().toISOString()
+      });
+      if (myco.update) {
+        myco.update(next).catch(function () { /* state is optional */ });
+      }
+    }).catch(function () { /* outside the App */ });
+  }
+
+  // ---- downloads ----
+  function download(name, text, mime) {
+    const blob = new Blob([text], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 0);
+  }
+  function makeCsv(header, centers, values) {
+    let s = header + "\n";
+    for (let i = 0; i < values.length; i++) {
+      s += centers[i].toFixed(6) + "," + values[i].toFixed(6) + "\n";
+    }
+    return s;
+  }
+  document.getElementById("btn-svg").addEventListener("click", function () {
+    const clone = svg.cloneNode(true);
+    clone.setAttribute("xmlns", NS);
+    download("fig_2501909_tread_wear_synthetic_preview.svg",
+      '<?xml version="1.0" encoding="UTF-8"?>\n' + clone.outerHTML, "image/svg+xml");
+  });
+  const xCenters = [], yCenters = [];
+  for (let i = 0; i < NX; i++) xCenters.push((i + 0.5) * DX);
+  for (let j = 0; j < NY; j++) yCenters.push((j + 0.5) * DY);
+  document.getElementById("btn-x").addEventListener("click", function () {
+    download("x_wear_volume_mm3_preview.csv",
+      makeCsv("x_mm,x_wear_volume_mm3", xCenters, xv), "text/csv");
+  });
+  document.getElementById("btn-y").addEventListener("click", function () {
+    download("y_wear_volume_mm3_preview.csv",
+      makeCsv("y_mm,y_wear_volume_mm3", yCenters, yv), "text/csv");
+  });
+})();
+</script>
+</body>
+</html>
